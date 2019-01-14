@@ -25,10 +25,10 @@ from PIL.Image import LANCZOS
 sys.stderr = stderr
 
 # Approximate
-NUM_TRAINING_EXAMPLES = 44148
-NUM_VALIDATION_EXAMPLES = 14504
+NUM_TRAINING_EXAMPLES = 43865
+NUM_VALIDATION_EXAMPLES = 14787
 
-CLASS_WEIGHTS = {0: 12.060161408657374, 1: 1.427281410089433, 2: 1.0, 3: 1.0915731456271998, 4: 1.1797043203674464}
+CLASS_WEIGHTS = {0: 11.973837209302326, 1: 1.435191637630662, 2: 1.0, 3: 1.0892022917584838, 4: 1.174508126603935}
 
 class DataGenerator(Sequence):
 
@@ -151,60 +151,6 @@ def train_mixed_model(use_latest=False, new_dir=True):
                         class_weight=CLASS_WEIGHTS,
                         use_multiprocessing=True,
                         workers=12)
-
-def train_mixed_densenet_model(use_latest=False, new_dir=True):
-    input_shapes = [(363,), (9,), (224, 224, 3)]
-    embedding_dim = 512
-    dense_dims = [512, 512]
-    reg_param = 1e-5
-    dropout = 0.3
-
-    batch_size = 32
-
-    init_lr = 1e-2
-    init_epoch = 0
-
-    model_name = f'mixed_densenet-embedding-{embedding_dim}-hidden-dense-(' + ', '.join(
-        [str(i) for i in dense_dims]) + f')-reg-{reg_param}-dropout-{dropout}-batchsize-{batch_size}-lr-{init_lr}'
-
-    if new_dir:
-        mkdir(f'SLink/PetfinderModels/{model_name}/')
-
-    if use_latest:
-        latest = max(glob(f'SLink/PetfinderModels/{model_name}/*.hdf5'), key=os.path.getctime)
-        model = keras.models.load_model(latest)
-        init_epoch = int(
-            re.search('[0-9]+', re.search('weights\.[0-9]+-', latest).group(0)).group(
-                0))
-    else:
-        model = MixedModel.mixed_dense_model(input_shapes, embedding_dim, dense_dims, reg_param=reg_param, dropout=dropout, use_dropout=True)
-        for layer in model.layers[:140]:
-            layer.trainable = False
-        for layer in model.layers[140:]:
-            layer.trainable = True
-        model.compile(optimizer=optimizers.Adam(lr=init_lr, amsgrad=True), loss='categorical_crossentropy',
-                      metrics=['categorical_accuracy'])
-
-    train_generator = DataGenerator('SLink/PetfinderDatasets/Train', batch_size, input_shapes=input_shapes, use_imagenet_preprocessing=True)
-    val_generator = DataGenerator('SLink/PetfinderDatasets/Val', batch_size, input_shapes=input_shapes, use_imagenet_preprocessing=True)
-
-    callbacks = [
-        ModelCheckpoint(f'SLink/PetfinderModels/{model_name}/' + 'weights.{epoch:02d}-{val_loss:.2f}.hdf5', period=5,
-                        verbose=1),
-        ReduceLROnPlateau(monitor='loss', factor=0.3, patience=5, verbose=1, cooldown=30),
-        TensorBoard(log_dir=f'logs/{model_name}')
-    ]
-
-    print(model.summary())
-
-    model.fit_generator(generator=train_generator, validation_data=val_generator,
-                        validation_steps=NUM_VALIDATION_EXAMPLES // batch_size,
-                        verbose=1,
-                        epochs=10000,
-                        callbacks=callbacks,
-                        steps_per_epoch=NUM_TRAINING_EXAMPLES // (batch_size * 4),
-                        initial_epoch=init_epoch,
-                        class_weight=CLASS_WEIGHTS)
 
 if __name__ == '__main__':
     train_mixed_model()

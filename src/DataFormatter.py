@@ -77,7 +77,8 @@ def build_train_val_directories():
         onehot_df.drop([col], axis=1, inplace=True)
 
     class_count = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0}
-    count = 0
+    num_training = 0
+    num_val = 0
 
     for index, row in tqdm(continuous_df.iterrows()):
         label = int(df["AdoptionSpeed"][index])
@@ -89,9 +90,12 @@ def build_train_val_directories():
                 if random.random() > 0.25:
                     pickle.dump(data,
                                 open(f'SLink/PetfinderDatasets/Train/{label}/{index}-0', 'wb'))
+                    num_training += 1
+                    class_count[label] += 1
                 else:
                     pickle.dump(data,
                                 open(f'SLink/PetfinderDatasets/Val/{label}/{index}-0', 'wb'))
+                    num_val += 1
             else:
                 for i in range(1, int(row['PhotoAmt'] + 1)):
                     img = img_to_array(load_img(f'SLink/PetfinderFiles/train_images/{index}-{i}.jpg'))
@@ -99,14 +103,15 @@ def build_train_val_directories():
                     if random.random() > 0.25:
                         pickle.dump(data_to_write, open(
                             f'SLink/PetfinderDatasets/Train/{label}/{index}-{i}', 'wb'))
+                        num_training += 1
+                        class_count[label] += 1
                     else:
                         pickle.dump(data_to_write,
                                     open(f'SLink/PetfinderDatasets/Val/{label}/{index}-{i}',
                                          'wb'))
-                    class_count[label] += 1
-        count += 1
+                        num_val += 1
     max_count = max(class_count.values())
-    return {k: max_count / v for k, v in class_count.items()}
+    return {k: max_count / v for k, v in class_count.items()}, num_training, num_val
 
 if __name__ == '__main__':
     print(build_train_val_directories())
